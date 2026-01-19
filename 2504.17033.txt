@@ -1,0 +1,953 @@
+                                             Breaking the Sorting Barrier for Directed Single-Source Shortest
+                                                                           Paths
+                                                   Ran Duan ∗           Jiayi Mao ∗           Xiao Mao †          Xinkai Shu ‡           Longhui Yin ∗
+
+                                                                                              July 31, 2025
+
+
+
+
+arXiv:2504.17033v2 [cs.DS] 30 Jul 2025
+                                                                                                  Abstract
+                                                                                        2/3
+                                                     We give a deterministic O(m log n)-time algorithm for single-source shortest paths (SSSP) on
+                                                 directed graphs with real non-negative edge weights in the comparison-addition model. This is the first
+                                                 result to break the O(m + n log n) time bound of Dijkstra’s algorithm on sparse graphs, showing that
+                                                 Dijkstra’s algorithm is not optimal for SSSP.
+
+
+                                         1       Introduction
+                                         In an m-edge n-vertex directed graph G = (V, E) with a non-negative weight function w : E → R≥0 ,
+                                         single-source shortest path (SSSP) considers the lengths of the shortest paths from a source vertex s to all
+                                         v ∈ V . Designing faster algorithms for SSSP is one of the most fundamental problems in graph theory, with
+                                         exciting improvements since the 50s.
+                                             The textbook Dijkstra’s algorithm [Dij59], combined with advanced data structures such as the Fibonacci
+                                         heap [FT87] or the relaxed heap [DGST88], solves SSSP in O(m+n log n) time. It works in the comparison-
+                                         addition model, natural for real-number inputs, where only comparison and addition operations on edge
+                                         weights are allowed, and each operation consumes unit time. For undirected graphs, Pettie and Ramachan-
+                                         dran [PR05] proposed a hierarchy-based algorithm which runs in O(mα(m, n) + min{n log n, n log log r})
+                                         time in the comparison-addition model, where α is the inverse-Ackermann function and r bounds the ratio
+                                         between any two edge weights.
+                                             Dijkstra’s algorithm also produces an ordering of vertices by distances from the source as a byproduct.
+                                         A recent contribution by Haeupler, Hladík, Rozhoň, Tarjan and Tětek [HHR+ 24] showed that Dijkstra’s
+                                         algorithm is optimal if we require the algorithm to output the order of vertices by distances. If only the
+                                         distances√and not the ordering are required, a recent result by Duan, Mao, Shu and Yin [DMSY23] provided
+                                         an O(m log n log log n)-time randomized SSSP algorithm for undirected graphs, better than O(n log n) in
+                                         sparse graphs. However it remains to break such a sorting barrier in directed graphs.
+
+                                         1.1     Our results
+                                         In this paper, we present the first SSSP algorithm for directed real-weighted graphs that breaks the sorting
+                                         bottleneck on sparse graphs.
+                                         Theorem 1.1. There exists a deterministic algorithm that takes O(m log2/3 (n)) time to solve the single-
+                                         source shortest path problem on directed graphs with real non-negative edge weights.
+                                             ∗
+                                               Tsinghua University. Email: duanran@mail.tsinghua.edu.cn, mjy22@mails.tsinghua.edu.cn, ylh21@mails.tsinghua.edu.cn.
+                                             †
+                                               Stanford University. Email: matthew99a@gmail.com.
+                                             ‡
+                                               Max Planck Institute for Informatics. Email: xshu@mpi-inf.mpg.de.
+
+
+                                                                                                      1
+    Note that the algorithm in [DMSY23] is randomized, thus our result is also the first deterministic algo-
+rithm to break such O(m + n log n) time bound even in undirected graphs.
+
+Technical Overview. Broadly speaking, there are two traditional algorithms for solving the single-source
+shortest path problem:
+      • Dijkstra’s algorithm [Dij59]: via a priority queue, it each time extracts a vertex u with the minimum
+        distance from the source, and from u relaxes its outgoing edges. It typically sorts vertices by their
+        distances from the source, resulting in a time complexity of at least Θ(n log n).
+      • Bellman-Ford algorithm [Bel58]: based on dynamic programming, it relaxes all edges for several
+        steps. For finding shortest paths with at most k edges, the Bellman-Ford algorithm can achieve this in
+        O(mk) time without requiring sorting.
+Our approach merges these two methods through a recursive partitioning technique, similar to those used in
+bottleneck path algorithms as described in [GT88, CKT+ 16, DLWX18].
+     At any point during the execution of the Dijkstra’s algorithm, the priority queue (heap) maintains a “fron-
+tier” S of vertices such that if a vertex u is “incomplete” — if the current distance estimate b d[u] is still greater
+than the true distance d(u) — the shortest s-u path must visit some complete vertex v ∈ S. In this case, we
+say u is “dependent” on v ∈ S. (However, vertices in S are not guaranteed to be all complete.) The Dijkstra’s
+algorithm simply picks the vertex in S closest to source, which must be complete, and then relaxes all edges
+from that vertex.
+     The running time bottleneck comes from the fact that sometimes the frontier may contain Θ(n) vertices.
+Since we constantly need to pick the vertex closest to source, we essentially need to maintain a total order
+between a large number of vertices, and are thus unable to break the Ω(n log n) sorting barrier. Our most
+essential idea is a way to reduce the size of the frontier. Suppose we want to compute all distances that are
+less than some upper bound B. Let U     e be the set of vertices u with d(u) < B and the shortest s-u path visits
+a vertex in S. It is possible to limit the size of our frontier |S| to |U e |/ logΩ(1) (n), or 1/ logΩ(1) (n) of the
+vertices of interest. Given a parameter k = logΩ(1) (n), there are two possible cases:
+      • If |U
+            e | > k|S|, then our frontier already has size |U
+                                                            e |/k;
+
+      • Otherwise, suppose |Ue | ≤ k|S|. By running Bellman-Ford step k times from vertices in S, every
+        vertex u ∈ U whose shortest s-u path containing < k vertices in U
+                   e                                                       e is complete. Otherwise the vertex
+        v ∈ S which u is dependent on must have a shortest path tree rooted at it with ≥ k vertices in U   e , so
+        we can shrink the frontier S to the set of “pivots”, each of which has a shortest path tree of size ≥ k,
+        and the number of such pivots is bounded by |U  e |/k.
+
+    Our algorithm is based on the idea above, but instead of using a Dijkstra-like method where the frontier
+is dynamic and thus intractable, we use a divide-and-conquer procedure that consists of log n/t levels, each
+containing a set of frontier vertices and an upper bound B, such that a naive implementation would still spend
+Θ(t) time per frontier vertex and the running time would remain Θ(log n) per vertex. We can however apply
+the aforementioned frontier reduction on each level so that the Θ(t) work only applies to the pivots, about
+1/ logΩ(1) (n) of the frontier vertices. Thus the running time per vertex gets reduced to log n/ logΩ(1) (n),
+which is a significant speedup.
+
+1.2     Related Works
+For the SSSP problem, if we allow the algorithm to run in the word RAM model with integer edge weights, a
+sequence of improvements beyond O(n log n) [FW93, FW94, Tho00a, Ram96, Ram97, Tho00b, Hag00] cul-
+minated in Thorup’s linear-time algorithm for undirected graphs [Tho99] and O(m + n log log min{n, C})
+
+                                                          2
+time for directed graphs [Tho04], where C is the maximum edge weight. For graphs with negative weights,
+recent breakthrough results include near-linear time O(m1+o(1) log C) algorithms for SSSP with negative in-
+teger weights [CKL+ 22, BNWN22, BCF23], and strongly subcubic time algorithm for SSSP with negative
+real weights [Fin24, HJQ24].
+    Based on the lower bound of Ω(n log n) for comparison-based sorting algorithms, it was generally
+believed that such sorting barrier exists for SSSP and many similar problems. Researchers have broken
+such a sorting barrier for many graph problems. For example, Yao [Yao75] gave a minimum spanning tree
+(MST) algorithm with running time O(m log log n), which is further improved to randomized linear time
+[KKT95]. Gabow and Tarjan [GT88] solves s-t bottleneck path problem in O(m log∗ n)-time, later im-
+proved to randomized O(mβ(m, n)) time [CKT+ 16], where β(m, n) = min{k ≥ 1 : √            log(k) n ≤ m n }.
+For the single-source all-destination bottleneck path problem, there is a randomized O(m log n)-time al-
+gorithm by Duan, Lyu, Wu and Xie [DLWX18]. For the single-source nondecreasing path problem, Virginia
+V.Williams [Wil10] proposed an algorithm with a time bound of O(m log log n).
+
+
+2    Preliminaries
+We consider a directed graph G = (V, E) with a non-negative weight function w : E → R≥0 , also denoted
+by wuv for each edge (u, v) ∈ E. Let n = |V |, m = |E| be the number of vertices and edges in the graph. In
+the single-source shortest path problem, we assume there is a source vertex in the graph denoted by s. The
+goal of our algorithm is to find the length of shortest path from s to every vertex v ∈ V , denoted by d(v).
+Without loss of generality, we assume that every vertex in G is reachable from s, so m ≥ n − 1.
+
+Constant-Degree Graph. In this paper we assume that the algorithm works on a graph with constant in-
+degrees and out-degrees. For any given graph G we may construct G′ by a classical transformation (similar
+to [Fre83]) to accomplish this:
+
+    • Substitute each vertex v with a cycle of vertices strongly connected with zero-weight edges. For every
+      incoming or outgoing neighbor w of v, there is a vertex xvw on this cycle.
+
+    • For every edge (u, v) in G, add a directed edge from vertex xuv to xvu with weight wuv .
+
+It’s clear that the shortest path is preserved by the transformation. Each vertex in G′ has in-degree and
+out-degree at most 2, while G′ being a graph with O(m) vertices and O(m) edges.
+
+Comparison-Addition Model. Our algorithm works under the comparison-addition model, where all edge
+weights are subject to only comparison and addition operations. In this model, each addition and comparison
+takes unit time, and no other computations on edge weights are allowed.
+
+Labels Used in the Algorithm. For a vertex v ∈ V , denote d(u) as the length of shortest path from s to u
+in the graph. Similar to the Dijkstra’s algorithm, our algorithm maintains a global variable d[u]
+                                                                                               b as a sound
+                              b ≥ d(u)). Initially d[s]
+estimation of d(u) (that is, d[u]                    b = 0 and d[v]b = ∞ for any other v ∈ V . Throughout
+the algorithm we only update d[v] in a non-increasing manner by relaxing an edge (u, v) ∈ E, that is, assign
+                                b
+d[v] ← b
+ b      d[u] + wuv when b   d[u] + wuv is no greater than the old value of b
+                                                                           d[v]. Therefore each possible value
+of d[v] corresponds to a path from s to v. If d[x] = d(x), we say x is complete; otherwise, we say x is
+    b                                            b
+incomplete. If all vertices in a set S are complete, we say S is complete. Note that completeness is sensitive
+to the progress of the algorithm. The algorithm also maintains a shortest path tree according to current b d[·]
+by recording the predecessor Pred[v] of each vertex v. When relaxing an edge (u, v), we set Pred[v] ← u.
+
+
+
+                                                      3
+Total order of Paths. Like in many papers on shortest path algorithms, we make the following assumption
+for an easier presentation of our algorithm:
+
+Assumption 2.1. All paths we obtain in this algorithm have different lengths.
+
+      This assumption is required for two purposes:
+
+    1. To ensure that Pred[v] for all vertices v ∈ V keep a tree structure throughout the algorithm;
+
+    2. To provide a relative order of vertices with the same value of d[].
+                                                                      b
+
+Next, we show that this assumption does not lose generality since we can provide a total order for all
+paths we obtain. We treat each path of length l that traverses α vertices v1 = s, v2 , ..., vα as a tuple
+⟨l, α, vα , vα−1 , ..., v1 ⟩ (note that the sequence of vertices is reversed in the tuple). We sort paths in the
+lexicographical order of the tuple in principle. That is, first compare the length l. When we have a tie, com-
+pare α. If there is still a tie, compare the sequence of vertices from vα to v1 . Comparison between the tuples
+can be done in only O(1) time with extra information of Pred[] and α stored for each d[v]:  b
+
+Relaxing an edge (u, v): If u ̸= Pred[v], even if there is a tie in l and α, it suffices to compare between
+     u and Pred[v], and if u = Pred[v], then d[u]
+                                              b is updated to currently “shortest” and d[v]  b needs to get
+     updated;
+
+Comparing two different d[u]    b for u ̸= v: Even if there is a tie in l and α, it suffices to compare
+                         b and d[v]
+    the endpoints u and v only.
+
+Therefore, in the following sections, we may assume that each path started from s has a unique length.
+
+
+3      The Main Result
+3.1     The Algorithm
+Recall that we work on SSSP from source s in constant-degree graphs with m = O(n). Let k := ⌊log1/3 (n)⌋
+and t := ⌊log2/3 (n)⌋ be two parameters in our algorithm. Our main idea is based on divide-and-conquer
+on vertex sets. We hope to partition a vertex set U into 2t pieces U = U1 ∪ U2 · · · ∪ U2t of similar sizes,
+where vertices in earlier pieces have smaller distances, and then recursively partition each Ui . In this way, the
+size of the sub-problem shrinks to a single vertex after roughly (log n)/t recursion levels. To construct our
+structure dynamically, each time we would try to compute the distances to a set of closest vertices (without
+necessarily recovering a complete ordering between their true distances), and report a boundary indicating
+how much progress we actually make.
+    Suppose at some stage of the algorithm, for every u with d(u) < b, u is complete and we have relaxed all
+the edges from u. We want to find the true distances to vertices v with d(v) ≥ b. To avoid the Θ(log n) time
+per vertex in a priority queue, consider the “frontier” S containing all current vertices v with b ≤ d[v]b <B
+for some bound B (without sorting them). We can see that the shortest path to every incomplete vertex v ′
+with b ≤ d(v ′ ) < B must visit some complete vertex in S. Thus to compute the true distance to every v ′
+with b ≤ d(v ′ ) < B, it suffices to find the shortest paths from vertices in S and bounded by B. We call this
+subproblem bounded multi-source shortest path (BMSSP) and design an efficient algorithm to solve it. The
+following lemma summarizes what our BMSSP algorithm achieves.
+
+Lemma 3.1 (Bounded Multi-Source Shortest Path). We are given an integer level l ∈ [0, ⌈log(n)/t⌉], a set
+of vertices S of size ≤ 2lt , and an upper bound B > maxx∈S d[x].
+                                                              b    Suppose that for every incomplete vertex
+v with d(v) < B, the shortest path to v visits some complete vertex u ∈ S.
+
+                                                        4
+    Then we have an sub-routine BMSSP(l, B, S) (Algorithm 3) in O((kl + tl/k + t)|U |) time that outputs a
+new boundary B ′ ≤ B and a vertex set U that contains every vertex v with d(v) < B ′ and the shortest path
+to v visits some vertex of S. At the end of the sub-routine, U is complete. Moreover, one of the following is
+true:
+
+Successful execution B ′ = B.
+
+Partial execution due to large workload B ′ < B, and |U | = Θ k2lt .
+                                                                  
+
+     On the top level of divide and conquer, the main algorithm calls BMSSP with parameters l = ⌈(log n)/t⌉,
+S = {s}, B = ∞. Because |U | ≤ |V | = o(kn), it must be a successful execution, and the shortest paths to
+all vertices are found. With chosen k and t, the total running time is O(m log2/3 n).
+     BMSSP procedure on level l works by recursion, it first tries to “shrink” S to size |U |/k by a simple
+Bellman-Ford-like method (Lemma 3.2), then    it makes several recursive calls on level (l − 1) until the bound
+reaches B or the size of U reaches Θ k2lt . We always make sure that a recursive call solves a problem that
+is smaller by a factor of roughly 1/2t , so the number of levels of the recursion is bounded by O((log n)/t).
+The main ideas are:
+
+    • Every time we only select about 2(l−1)t vertices for our next recursive call, so we use a partial sorting
+      heap-like data structure as described in Lemma 3.3 to improve the running time.
+
+    • If we used all of S in the recursive calls, then after all remaining levels S could be fully sorted and
+      nothing is improved. Thus FindPivots (Algorithm 1) procedure is crucial here, as it shows that only
+      at most |U |/k vertices of S are useful in the recursive calls.
+
+    • Partial executions may be more complicated to analyze, so we introduce some techniques like Batch-
+      Prepend operation in Lemma 3.3.
+
+Finding Pivots. Recall that in the current stage, every u such that d(u) < b is complete, and we have
+relaxed all the edges from such u’s, and the set S includes every vertex v with current b ≤ d[v]
+                                                                                               b < B. Thus,
+the shortest path of every incomplete vertex v such that d(v) < B visits some complete vertex in S. (This is
+because the first vertex w in the shortest path to v with d(w) ≥ b is complete and included in S.)
+     The idea of finding pivots is as follows: we perform relaxation for k steps (with a bound B). After this,
+if the shortest s-v path with b ≤ d(v) < B goes through at most k vertices w with b ≤ d(w) < B, then
+v is already complete. Observe that the number of large shortest path trees from S, consisting of at least
+k vertices and rooted at vertices in S, is at most |Ue |/k here, where Ue is the set of all vertices v such that
+d(v) < B and the shortest path of v visits some complete vertex in S. So only the roots of such shortest-path
+trees are needed to be considered in the recursive calls, and they are called “pivots”.
+
+Lemma 3.2 (Finding Pivots). Suppose we are given a bound B and a set of vertices S. Suppose that for
+every incomplete vertex v such that d(v) < B, the shortest path to v visits some complete vertex u ∈ S.
+    Denote by U e the set that contains every vertex v such that d(v) < B and the shortest path to v passes
+through some vertex in S. The sub-routine FindPivots(B, S) (Algorithm 1) finds a set W ⊆ U          e of size
+O(k|S|) and a set of pivots P ⊆ S of size at most |W |/k such that for every vertex x ∈ U e , at least one of
+the following two conditions holds:
+
+    • At the end of the sub-routine, x ∈ W and x is complete;
+
+    • The shortest path to x visits some complete vertex y ∈ P .
+
+Moreover, the sub-routine runs in time O(k|W |) = O(min{k 2 |S|, k|U
+                                                                   e |}).
+
+                                                       5
+Algorithm 1 Finding Pivots
+ 1: function FindPivots(B, S)
+    • requirement: for every incomplete vertex v with d(v) < B, the shortest path to v visits some complete
+    vertex in S
+    • returns: sets P, W satisfying the conditions in Lemma 3.2
+ 2:     W ←S
+ 3:     W0 ← S
+ 4:     for i ← 1 to k do                                                                ▷ Relax for k steps
+ 5:         Wi ← ∅
+ 6:         for all edges (u, v) with u ∈ Wi−1 do
+ 7:                b + wuv ≤ d[v]
+                if d[u]            b then
+ 8:                  d[v] ← b
+                      b      d[u] + wuv
+ 9:                  if d[u] + wuv < B then
+                        b
+10:                      Wi ← Wi ∪ {v}
+11:         W ← W ∪ Wi
+12:         if |W | > k|S| then
+13:             P ←S
+14:             return P, W
+15:     F ← {(u, v) ∈ E : u, v ∈ W, b          d[u] + wuv } ▷ F is a directed forest under Assumption 2.1
+                                        d[v] = b
+16:     P ← {u ∈ S : u is a root of a tree with ≥ k vertices in F }
+17:     return P, W
+
+
+Proof. Note that all vertices visited by Algorithm 1 are in U     e , and those in W are not guaranteed to be
+complete after the procedure. Also note that every vertex in U       e must visit some vertex in S which was
+complete before Algorithm 1, since any incomplete vertex v at that time with d(v) < B must visit some
+complete vertex in S.
+    If the algorithm returns due to |W | > k|S|, we still have |W | = O(k|S|) since the out-degrees of vertices
+are constant. For every incomplete vertex v such that d(v) < B, we know that the shortest path to v visits
+some complete vertex u ∈ S. Since P = S, we must also have u ∈ P and conditions in the lemma are thus
+satisfied.
+    If |W | ≤ k|S|, P is derived from F . For any vertex x ∈ U  e , consider the first vertex y ∈ S on the shortest
+path to x which was complete before Algorithm 1, then y must be a root of a tree in F . If there are no more
+than k − 1 edges from y to x on the path, x is complete and added to W after k relaxations. Otherwise, the
+tree rooted at y contains at least k vertices, therefore y is added to P . Additionally, |P | ≤ |W |/k ≤ |U    e |/k
+since each vertex in P covers a unique subtree of size at least k in F .
+    To evaluate the time complexity, note that the size of W is O(min{k|S|, |U        e |}), so each iteration takes
+O(min{k|S|, |U |}) time. Computing P after the for-loop runs in O(|W |) time for final W . Therefore,
+                e
+FindPivots finishes in O(min{k 2 |S|, k|U  e |}) time.
+
+     We also use the following data structure to help adaptively partition a problem into sub-problems, spec-
+ified in Lemma 3.3:
+
+Lemma 3.3. Given at most N key/value pairs to be inserted, an integer parameter M , and an upper bound
+B on all the values involved, there exists a data structure that supports the following operations:
+
+Insert Insert a key/value pair in amortized O(max{1, log(N/M )}) time. If the key already exists, update
+      its value.
+
+
+                                                         6
+Batch Prepend Insert L key/value pairs such that each value in L is smaller than any value currently in the
+     data structure, in amortized O(L · max{1, log(L/M )}) time. If there are multiple pairs with the same
+     key, keep the one with the smallest value.
+
+Pull Return a subset S ′ of keys where |S ′ | ≤ M associated with the smallest |S ′ | values and an upper
+     bound x that separates S ′ from the remaining values in the data structure, in amortized O(|S ′ |) time.
+     Specifically, if there are no remaining values, x should be B. Otherwise, x should satisfy max(S ′ ) <
+     x ≤ min(D) where D is the set of elements in the data structure after the pull operation.
+
+Proof. We introduce a block-based linked list data structure to support the required operations efficiently.
+     Specifically, the data is organized into two sequences of blocks, D0 and D1 . D0 only maintains elements
+from batch prepends while D1 maintains elements from insert operations, so every single inserted element
+is always inserted to D1 . Each block is a linked list containing at most M key/value pairs. The number of
+blocks in D1 is bounded by O(max{1, N/M }), while D0 does not have such a requirement. Blocks are
+maintained in the sorted order according to their values, that is, for any two key/value pairs ⟨a1 , b1 ⟩ ∈ Bi
+and ⟨a2 , b2 ⟩ ∈ Bj , where Bi and Bj are the i-th and j-th blocks from a block sequence, respectively, and
+i < j, we have b1 ≤ b2 . For each block in D1 , we maintain an upper bound for its elements, so that the upper
+bound for a block is no more than any value in the next block. We adopt a self-balancing binary search tree
+(e.g. Red-Black Tree [GS78]) to dynamically maintain these upper bounds, with O(max{1, log(N/M )})
+search/update time.
+     For cases where multiple pairs with the same key are added, we record the status of each key and the
+associated value. If the new pair has a smaller value, we first delete the old pair then insert the new one,
+ensuring that only the most advantageous pair is retained for each key.
+     For the operations required in Lemma 3.3:
+
+Initialize(M, B) Initialize D0 with an empty sequence and D1 with a single empty block with upper bound
+      B. Set the parameter M .
+
+Delete(a, b) To delete the key/value pair ⟨a, b⟩, we remove it directly from the linked list, which can be
+     done in O(1) time. Note that it’s unnecessary to update the upper bounds of blocks after a deletion.
+     However, if a block in D1 becomes empty after deletion, we need to remove its upper bound in the
+     binary search tree in O(max{1, log(N/M )}) time. Since Insert takes O(max{1, log(N/M )}) time
+     for D1 , deletion time will be amortized to insertion time with no extra cost.
+
+Insert(a, b) To insert a key/value pair ⟨a, b⟩, we first check the existence of its key a. If a already exists, we
+     delete original pair ⟨a, b′ ⟩ and insert new pair ⟨a, b⟩ only when b < b′ .
+      Then we insert ⟨a, b⟩ to D1 . We first locate the appropriate block for it, which is the block with the
+      smallest upper bound greater than or equal to b, using binary search (via the binary search tree) on
+      the block sequence. ⟨a, b⟩ is then added to the corresponding linked list in O(1) time. Given that the
+      number of blocks in D1 is O(max{1, N/M }), as we will establish later, the total time complexity for
+      a single insertion is O(max{1, log(N/M )}).
+      After an insertion, the size of the block may increase, and if it exceeds the size limit M , a split operation
+      will be triggered.
+
+Split When a block in D1 exceeds M elements, we perform a split. First, we identify the median element
+      within the block in O(M ) time [BFP+ 73], partitioning the elements into two new blocks each with at
+      most ⌈M/2⌉ elements — elements smaller than the median are placed in the first block, while the rest
+      are placed in the second. This split ensures that each new block retains about ⌈M/2⌉ elements while
+      preserving inter-block ordering, so the number of blocks in D1 is bounded by O(N/M ). (Every block
+
+                                                        7
+      in D1 contains Θ(M ) elements, including the elements already deleted.) After the split, we make the
+      appropriate changes in the binary search tree of upper bounds in O(max{1, log(N/M )}) time.
+
+BatchPrepend(L) Let L denote the size of L. When L ≤ M , we simply create a new block for L and
+     add it to the beginning of D0 . Otherwise, we create O(L/M ) new blocks in the beginning of D0 ,
+     each containing at most ⌈M/2⌉ elements. We can achieve this by repeatedly taking medians which
+     completes in O(L log(L/M )) time.
+
+Pull() To retrieve the smallest M values from D0 ∪ D1 , we collect a sufficient prefix of blocks from D0
+     and D1 separately, denoted as S0′ and S1′ , respectively. That is, in D0 (D1 ) we start from the first block
+     and stop collecting as long as we have collected all the remaining elements or the number of collected
+     elements in S0′ (S1′ ) has reached M . If S0′ ∪ S1′ contains no more than M elements, it must contain all
+     blocks in D0 ∪ D1 , so we return all elements in S0′ ∪ S1′ as S ′ and set x to the upper bound B, and the
+     time needed is O(|S ′ |). Otherwise, we want to make |S ′ | = M , and because the block sizes are kept
+     at most M , the collecting process takes O(M ) time.
+      Now we know the smallest M elements must be contained in S0′ ∪S1′ and can be identified from S0′ ∪S1′
+      as S ′ in O(M ) time. Then we delete elements in S ′ from D0 and D1 , whose running time is amortized
+      to insertion time. Also set returned value x to the smallest remaining value in D0 ∪ D1 , which can also
+      be found in O(M ) time.
+
+
+
+    We now describe our BMSSP algorithm (Algorithm 3) in detail. Recall that the main algorithm calls
+BMSSP with parameters l = ⌈(log n)/t⌉, S = {s}, B = ∞ on the top level.
+    In the base case of l = 0, S is a singleton {x} and x is complete. We run a mini Dijkstra’s algorithm
+(Algorithm 2) starting from x to find the closest vertices v from x such that d(v) < B and the shortest path
+to v visits x, until we find k + 1 such vertices or no more vertices can be found. Let U0 be the set of them. If
+we do not find k + 1 vertices, return B ′ ← B, U ← U0 . Otherwise, return B ′ ← maxv∈U0 d(v), U ← {v ∈
+U0 : d(v) < B ′ }.
+    If l > 0, first we use FindPivots from Lemma 3.2 to obtain a pivot set P ⊆ S and a set W . We initialize
+the data structure D from Lemma 3.3 with M := 2(l−1)t and add each x ∈ P as a key associated with value
+ b to D. For simplicity, we write D as a set to refer to all the keys (vertices) in it.
+d[x]
+    Set B0′ ← minx∈P d[x];b U ← ∅. The rest of the algorithm repeats the following iteration of many phases,
+during the i-th iteration, we:
+
+   1. Pull from D a subset Si of keys associated with the smallest values and Bi indicating a lower bound
+      of remaining value in D ;
+
+   2. Recursively call BMSSP(l − 1, Bi , Si ), obtain its return, Bi′ and Ui , and add vertices in Ui into U ;
+
+   3. Relax every edge (u, v) for u ∈ Ui (i.e. d[v]
+                                               b ← min{d[v],
+                                                           b d[u]b + wuv }). If the relax update is valid
+       d[u] + wuv ≤ b
+      (b            d[v]), do the following (even when b
+                                                       d[v] already equals b
+                                                                           d[u] + wuv ):
+              b + wuv ∈ [Bi , B), then simply insert ⟨v, d[u]
+       (a) if d[u]                                            b + wuv ⟩ into D;
+              d[u] + wuv ∈ [B ′ , Bi ), then record ⟨v, b
+       (b) if b                 i                       d[u] + wuv ⟩ in a set K;
+
+   4. Batch prepend all records in K and ⟨x, b                     d[x] ∈ [Bi′ , Bi ) into D;
+                                             d[x]⟩ for x ∈ Si with b
+
+   5. If D is empty, then it is a successful execution and we return;
+
+   6. If |U | > k2lt , set B ′ ← Bi′ . We expect a large workload and we prematurely end the execution.
+
+                                                       8
+   Finally, before we end the sub-routine, we update U to include every vertex x in the set W returned by
+                  b < B′.
+FindPivots with d[x]
+
+Algorithm 2 Base Case of BMSSP
+ 1: function BaseCase(B, S)
+    • requirement 1: S = {x} is a singleton, and x is complete
+    • requirement 2: for every incomplete vertex v with d(v) < B, the shortest path to v visits x
+    • returns 1: a boundary B ′ ≤ B
+    • returns 2: a set U
+ 2:     U0 ← S
+ 3:     initialize a binary heap H with a single element ⟨x, d[x]⟩
+                                                             b     [Wil64]
+ 4:     while H is non-empty and |U0 | < k + 1 do
+ 5:          ⟨u, d[u]⟩
+                 b      ← H.ExtractMin()
+ 6:          U0 ← U0 ∪ {u}
+ 7:          for edge e = (u, v) do
+ 8:                 b + wuv ≤ d[v]
+                 if d[u]            b and d[u]
+                                           b + wuv < B then
+ 9:                  d[v] ← d[u] + wuv
+                      b       b
+10:                  if v is not in H then
+11:                      H.Insert(⟨v, d[v]⟩)
+                                        b
+12:                  else
+13:                      H.DecreaseKey(⟨v, d[v]⟩)
+                                              b
+14:     if |U0 | ≤ k then
+15:          return B ′ ← B, U ← U0
+16:     else
+17:          return B ′ ← maxv∈U0 d[v],                   b < B′}
+                                       b U ← {v ∈ U0 : d[v]
+
+
+Remark 3.4. Note that on Line 7 of Algorithm 1, Line 8 of Algorithm 2 and Line 15 of Algorithm 3, the
+                b + wuv ≤ d[v]”.
+conditions are “d[u]        b     The equality is required so that an edge relaxed on a lower level can be
+re-used on upper levels.
+Remark 3.5. Using methods in Lemma 3.3 to implement data structure D in Algorithm 3 at level l, where
+M = 2(l−1)t , and |S| ≤ 2lt , the total number of insertions N is O(k2lt ), because of the fact that |U | =
+O(k2lt ), the constant-degree property, and the disjointness of Ui ’s (as established later in Remark 3.8). Also,
+size of K each time is bounded by O(|Ui |) = O(k2(l−1)t ). Thus, insertion to D takes O(log k + t) = O(t)
+time, and Batch Prepend takes O(log k) = O(log log n) time per vertex in K.
+
+3.2   Observations and Discussions on the Algorithm
+We first give some informal explanations on the algorithm, and then in the next subsections, we will formally
+prove the correctness and running time of the algorithm.
+
+What can we get from the recursion? Let’s look at the recursion tree T of Algorithm 3 where each node
+x denotes a call of the BMSSP procedure. Let lx , Bx , and Sx denote the parameters l, B, and S at node x,
+Bx′ and Ux denote the returned values B ′ and U at node x, Px and Wx denote P and W (on Line 4) returned
+by the FindPivots procedure at node x, respectively, and Wx′ denote the set of vertices v ∈ Wx satisfying
+d(v) < Bx′ . Then we expect:
+   1. Since we assume that all vertices are reachable from s, in the root r of T , we have Ur = V ;
+
+                                                       9
+Algorithm 3 Bounded Multi-Source Shortest Path
+ 1: function BMSSP(l, B, S)
+    • requirement 1: |S| ≤ 2lt
+    • requirement 2: for every incomplete vertex x with d(x) < B, the shortest path to x visits some
+    complete vertex y ∈ S
+    • returns 1: a boundary B ′ ≤ B
+    • returns 2: a set U
+ 2:     if l = 0 then
+ 3:          return B ′ , U ← BaseCase(B, S)
+ 4:     P, W ← FindPivots(B, S)
+ 5:     D.Initialize(M, B) with M = 2(l−1)t                                   ▷ D is an instance of Lemma 3.3
+ 6:     D.Insert(⟨x, d[x]⟩)b     for x ∈ P
+ 7:     i ← 0; B0′ ← minx∈P d[x];   b U ←∅                                             ▷ If P = ∅ set B0′ ← B
+ 8:                         lt
+        while |U | < k2 and D is non-empty do
+ 9:          i←i+1
+10:          Bi , Si ← D.Pull()
+11:          Bi′ , Ui ← BMSSP(l − 1, Bi , Si )
+12:          U ← U ∪ Ui
+13:          K←∅
+14:          for edge e = (u, v) where u ∈ Ui do
+15:                   b + wuv ≤ d[v]
+                   if d[u]           b then
+16:                    d[v] ← d[u] + wuv
+                        b       b
+17:                       d[u] + wuv ∈ [Bi , B) then
+                       if b
+18:                        D.Insert(⟨v, d[u]
+                                         b + wuv ⟩)
+19:                    else if d[u] + wuv ∈ [Bi′ , Bi ) then
+                               b
+20:                        K ← K ∪ {⟨v, d[u]
+                                           b + wuv ⟩}
+21:          D.BatchPrepend(K ∪ {⟨x, d[x]⟩   b                   b ∈ [B ′ , Bi )})
+                                                    : x ∈ Si and d[x]  i
+22:     return B ′ ← min{B ′ , B}; U ← U ∪ {x ∈ W : d[x]
+                               i
+                                                               b < B′}
+
+
+   2. |Sx | ≤ 2lx t , so the depth of T is at most (log n)/t = O(log1/3 n);
+
+   3. We break when |Ux | ≥ k2lx t > |Sx |. Intuitively, the size of Ux increases slowly enough so we should
+      still have |Ux | = O(k2lx t ) (formally shown in Lemma 3.9);
+
+   4. If node x is a successful execution, in the execution of FindPivots, U
+                                                                           e in Lemma 3.2 is equal to Ux ,
+      so |Px | ≤ |Ux |/k by Lemma 3.2;
+
+   5. If node x is a partial execution, |Ux | ≥ k2lx t ≥ k|Sx |, so |Px | ≤ |Sx | ≤ |Ux |/k;
+
+   6. For each node x of T and its children y1 , · · · , yq in the order of the calls, we have:
+
+         • Uy1 , · · · , Uyq are disjoint. For i < j, distances to vertices in Uyi are smaller than distances to
+           vertices in Uyj ;
+         • Ux = Wx′ ∪ Uy1 ∪ · · · ∪ Uyq ;
+         • Consequently, the Ux ’s for all nodes x at the same depth in T are disjoint, and total sum of |Ux |
+           for all nodes x in T is O(n(log n)/t).
+
+
+
+                                                        10
+Correctness. In a call of BMSSP, let U    e denote the set that contains all vertices v with d(v) < B and the
+shortest path to v visits some vertex in S. Then BMSSP should return U = U      e in a successful execution, or
+             e             ′
+U = {u ∈ U : d(u) < B } in a partial execution, with all vertices in U complete.
+    In the base case where l = 0, S contains only one vertex x, a Dijkstra-like algorithm starting from x
+completes the task.
+    Otherwise we first shrink S to a smaller set of pivots P to insert into D, with some vertices complete and
+added into W . Lemma 3.2 ensures that the shortest path of any remaining incomplete vertex v visits some
+complete vertex in D. For any bound Bi ≤ B, if d(v) < Bi , the shortest path to v must also visit some
+complete vertex u ∈ D with d(u) < Bi . Therefore we can call subprocedure BMSSP on Bi and Si .
+    By inductive hypothesis, each time a recursive call on Line 11 of Algorithm 3 returns, vertices in Ui are
+complete. After the algorithm relaxes edges from u ∈ Ui and inserts all the updated out-neighbors x with
+d[x] ∈ [Bi′ , B) into D, once again any remaining incomplete vertex v now visits some complete vertex in D.
+b
+    Finally, with the complete vertices in W added, U contains all vertices required and all these vertices are
+complete.
+
+Running time. The running time is dominated by calls of FindPivots and the overheads inside the data
+structures D. By (4) and (5), the running time of FindPivots procedure at node x is bounded by O(|Ux |k),
+so the total running time over all nodes on one depth of T is O(nk). Summing over all depths we get
+O(nk · (log n)/t) = O(n log2/3 n).
+    For the data structure D in a call of BMSSP, the total running time is dominated by Insert and Batch
+Prepend operations. We analyze the running time as follows.
+
+    • Vertices in P can be added to D on Line 6. Since |Px | = O(|Ux |/k), the total time for nodes of one
+      depth of T is O(n/k · (t + log k)) = O(nt/k). Summing over all depths we get O((n log n)/k) =
+      O(n log2/3 n).
+
+    • Some vertices already pulled to Si can be added back to D through BatchPrepend on Line      P 21. Here
+      we know in every iteration i, |Si | ≤ |Ui |, so the total time for adding back is bounded by x∈T |Ux | ·
+      log k = O(n log k · (log n)/t) = O(n · log1/3 n · log log n).
+
+    • A vertex v can be inserted to D through edge (u, v) directly on Line 18 if Bi ≤ d(u) + wuv < B,
+      or through K as on Line 20 if Bi′ ≤ d(u) + wuv < Bi . (Note that u ∈ Ui is already complete.)
+      Every edge (u, v) can only be relaxed once in each level by (6), but it can be relaxed in multiple
+      levels in an ancestor-descendant path of the recursion tree T . (Note that the condition on Line 15 is
+       b + wuv ≤ d[v].)
+      d[u]            b     However, we can show every edge (u, v) can only lead v to be directly inserted
+      to D by the Insert operation on one level.
+
+         – It can be easily seen that if y is a descendant of x in the recursion tree T , By ≤ Bx .
+         – If (u, v) leads v to be directly inserted to D on Line 18, then d(u) + wuv ≥ Bi . Since u ∈ Ui ,
+           for every descendant y of the current call in the recursion tree T satisfying u ∈ Uy , we have
+           By ≤ Bi ≤ d(u) + wuv , so v will not be added to D through (u, v) in any way in lower levels.
+
+    • Since every edge (u, v) can only lead v to be directly inserted to D by the Insert operation once in the
+      algorithm, the total time is O(m(log k + t)) = O(m log2/3 n). The time for all edges (u, v) leading
+      v to be inserted to D through K in one level is O(m log k), and in total is O(m log k · (log n)/t) =
+      O(m · log1/3 n · log log n).
+
+
+
+
+                                                      11
+3.3     Correctness Analysis
+To present the correctness more accurately and compactly, we introduce several notations on the “shortest
+path tree”. Due to the uniqueness of shortest paths, the shortest path tree T rooted at the source s can
+be constructed unambiguously. Define T (u) as the subtree rooted at u according to d(·). An immediate
+observation is that the shortest path toSv passes through u if and only if v is in the subtree rooted at u.
+    For a vertex set S, define T (S) = v∈S T (v), namely the union of the subtrees of T (s) rooted at vertices
+in S, or equivalently, the set of vertices whose shortest paths pass through
+                                                                          S some vertex in S. For a set of
+                             ∗                                       ∗
+vertices S ⊆ V , denote S = {v ∈ S : v is complete}. Then T (S ) = v∈S ∗ T (v) is the union of subtrees
+of T (s) rooted at S ∗ , or the set of vertices whose shortest paths pass through some complete vertex in S.
+Obviously, T (S ∗ ) ⊆ T (S). Note that T (S ∗ ) is sensitive to the progress of the algorithm while T (S) is a
+fixed set. Another observation is that, a complete vertex would remain complete, so S ∗ and T (S ∗ ) never lose
+a member.
+    For a bound B, denote T<B (S) = {v ∈ T (S) : d(v) < B}. Also note that T<B (S) coincides with U          e
+mentioned above. For an interval [b, B), denote T[b,B) (S) = {v ∈ T (S) : d(v) ∈ [b, B)}.
+
+Lemma 3.6 (Pull Minimum). Suppose every incomplete vertex v with d(v) < B is in T (S ∗ ). Suppose we
+split S into X = {x ∈ S : d[x]
+                           b < B} and Y = {x ∈ S : d[x] b ≥ B} for some B < B. Then every incomplete
+vertex v with d(v) < B is in T (X ). Moreover, for any B ′ < B, T<B′ (S) = T<B′ (X).
+                                 ∗
+
+
+Proof. For any incomplete vertex v with d(v) < B, as B < B, by definition, v ∈ T (u) for some complete
+vertex u ∈ S. Therefore bd[u] = d(u) ≤ d(v) < B, so u ∈ X and thus v ∈ T (X ∗ ).
+    For the second statement, it is clear that T<B′ (X) ⊆ T<B′ (S). For any v ∈ T<B′ (S), since d(v) < B ′ <
+B < B, the shortest path to v passes through some vertex x ∈ S ∗ . Now that d[x]
+                                                                               b = d(x) ≤ d(v) < B ′ , we
+have x ∈ X and v ∈ T<B′ (X).
+
+      Now we are ready to prove the correctness part of Lemma 3.1.
+
+Lemma 3.7. We prove the correctness of Algorithm 3 by proving the following statement (the size of U is
+dealt with in Lemma 3.9), restated from Lemma 3.1: Given a level l ∈ [0, ⌈(log n)/t⌉], a bound B and a set
+of vertices S of size ≤ 2lt , suppose that every incomplete vertex v with d(v) < B is in T (S ∗ ).
+    Then, after running Algorithm 3, we have: U = T<B ′ (S) , and U is complete.
+
+Proof. We prove by induction on l. When l = 0, since S = {x} is a singleton, x must be complete. Then
+clearly the classical Dijkstra’s algorithm (Algorithm 2) finds the desired U = T<B ′ (S) as required. Suppose
+correctness holds for l − 1, we prove that it holds for l. Denote Di as the set of vertices (keys) in D just before
+the i-th iteration (at the end of the (i − 1)-th iteration), and Di∗ as the set of complete vertices in Di at that
+time. Next, we prove the following two propositions by induction on increasing order of i:
+    Immediately before the i-th iteration,
+
+  (a) Every incomplete vertex v with d(v) < B is in T[Bi−1
+                                                       ′   ,B) (P ).
+
+  (b) T[Bi−1                              ∗
+         ′   ,B) (P ) = T<B (Di ) = T<B (Di );
+
+    In the base case i = 1, by Lemma 3.2, for every incomplete vertex v with d(v) < B (including v ∈ P ),
+v ∈ T<B (P ∗ ). Then d(v) ≥ minx∈P ∗ d(x) = minx∈P ∗ d[x]    b ≥ B ′ . Thus every such v is in T[B ′ ,B) (P )
+                                                                      0                               0
+(actually T<B0′ (P ) is an empty set) and T[B0′ ,B) (P ) = T<B (P ) = T<B (P ∗ ). Because D1 = P , the base
+case is proved.
+    Suppose both propositions hold for i. Then each incomplete vertex v with d(v) < B is in T[Bi−1
+                                                                                                 ′  ,B) (P ) ⊆
+     ∗
+T (Di ). By Lemma 3.3, the suppositions of Lemma 3.6 are met for X := Si , Y := Di \Si , and B := Bi , so
+every incomplete vertex v with d(v) < Bi is in T (Si ∗ ); also note |Si | ≤ 2(l−1)t . By induction hypothesis
+
+                                                        12
+on level l − 1, the i-th recursive call is correct and we have Ui = T<Bi′ (Si ) and is complete. Note that Si
+includes all the vertices v in Di such that bd[v] < B ′ and that B ′ ≤ B. Thus by Lemma 3.6 and proposition
+                                                           i              i
+(b) on case i, Ui = T<Bi′ (Si ) = T<Bi′ (Di ) = T[Bi−1     ′  ,Bi′ ) (P ) and is complete (thus proving Remark 3.8).
+Then, every incomplete vertex v with d(v) < B is in T[Bi−1        ′   ,B) (P ) \ T[Bi−1
+                                                                                    ′   ,Bi′ ) (P ) = T[Bi′ ,B) (P ). Thus, we
+proved proposition (a) for the (i + 1)-th iteration.
+    Now we prove proposition (b) for the (i + 1)-th iteration. Since Bi′ ≥ Bi−1          ′ , from proposition (b) of the
+                                                                         ∗
+i-th iteration, we have T[Bi′ ,B) (P ) = T[Bi′ ,B) (Di ) = T[Bi′ ,B) (Di ). Suppose we can show that T[Bi′ ,B) (Di∗ ) ⊆
+         ∗ ) and T                                                            ∗
+T<B (Di+1           <B (Di+1 ) ⊆ T[Bi′ ,B) (Di ). By definition T<B (Di+1 ) ⊆ T<B (Di+1 ), then
+
+            T[Bi′ ,B) (P ) = T[Bi′ ,B) (Di∗ ) ⊆ T<B (Di+1
+                                                      ∗
+                                                          ) ⊆ T<B (Di+1 ) ⊆ T[Bi′ ,B) (Di ) = T[Bi′ ,B) (Di∗ ),
+
+and by sandwiching, proposition (b) holds for (i + 1). Thus it suffices to prove T[Bi′ ,B) (Di∗ ) ⊆ T<B (Di+1
+                                                                                                          ∗ )
+
+and T<B (Di+1 ) ⊆ T[Bi′ ,B) (Di ).
+    For any vertex y ∈ Di∗ \ Di+1  ∗ , we have y ∈ S . Note that vertices v of S with d[v]
+                                                    i                           i
+                                                                                         b ≥ B ′ are batch-
+                                                                                                    i
+prepended back to Di+1 on Line 21, so we have d[y]b < B ′ . Thus y ∈ Ui and is complete. For any vertex
+                                                                     i
+x ∈ T[Bi′ ,B) (y), as x ̸∈ Ui , along the shortest path from y to x, there is an edge (u, v) with u ∈ Ui and
+                                                                                                     ∗ ).
+v ̸∈ Ui . During relaxation, v is then complete and is added to Di+1 , so x ∈ T[Bi′ ,B) (v) ⊆ T<B (Di+1
+    For any vertex v ∈ Di+1 \ Di , since v is added to Di+1 , there is an edge (u, v) with u ∈ Ui = T<Bi′ (Di )
+                                        d[u] + wuv ≤ b
+and the relaxation of (u, v) is valid ( b               d[v]). Pick the last valid relaxation edge (u, v) for v.
+If v ∈ T (u), then v is complete, d(v) = d[v] ≥ B ′ , and v ∈ T[B ′ ,B) (Di ); if v is incomplete, then by
+                                               b
+                                                                i                 i
+proposition (a), v ∈ T[Bi′ ,B) (P ) = T[Bi′ ,B) (Di ); or if v is complete but v ∈
+                                                                                 / T (u), we have a contradiction
+because it implies that relaxation of (u, v) is invalid.
+    Now that we have proven the propositions, we proceed to prove that the returned U = T<B ′ (S) and
+that U is complete. Suppose there are q iterations. We have shown that every Ui = T[Bi−1        ′  ,Bi′ ) (P ) and is
+complete, so Ui ’s are also disjoint. By Lemma 3.2, W contains every vertex in T<B (S \ P ) (as they are
+not in T (P )) and they are complete; besides, all vertices v in W but not in T<B (S \ P ) with d(v) < Bq′
+are complete (because they are in T<Bq′ (P )). Therefore, {x ∈ W : b        d[x] < Bq′ } contains every vertex in
+                                                         Sq                      b < B ′ } equals T<B ′ (S) and
+T<B ′ (S \ P ) and is complete. Thus finally U := (
+      q
+                                                                Ui ) ∪ {x ∈ W : d[x]
+                                                               i=1                                q                q
+is complete.
+
+Remark 3.8. From the proof of Lemma 3.7, Ui = T[Bi−1′ ,Bi′ ) (P ) and they are disjoint and complete. As a
+reminder, Lemma 3.6 and proposition (b) of Lemma 3.7 prove this.
+
+3.4       Time Complexity Analysis
+Lemma 3.9. Under the same conditions as in Lemma 3.7, where every incomplete vertex v with d(v) < B
+is in T<B (S ∗ ). After running Algorithm 3, we have |U | ≤ 4k2lt . If B ′ < B, then |U | ≥ k2lt .
+Proof. We can prove this by induction on the number of levels. The base case l = 0 clearly holds.
+    Suppose there are q iterations. Before the q-th iteration, |U | < k2lt . After the q-th iteration, the number
+of newly added vertices |Uq | ≤ 4k2(l−1)t (by Lemma 3.7, the assumptions for recursive calls are satisfied),
+and because |W | ≤ k|S| ≤ k2lt , we have |U | ≤ 4k2lt . If D is empty, the algorithm succeeds and quits with
+B ′ = B. Otherwise, the algorithm ends partially because |U | ≥ k2lt .
+                                                                                 ′ .
+Lemma 3.10. Immediately before the i-th iteration of Algorithm 3, minx∈D d(x) ≥ Bi−1
+
+Proof. From the construction of D, immediately before the i-th iteration of Algorithm 3, minv∈D d[v]
+                                                                                                b ≥
+  ′                                                       ′
+Bi−1 . For v ∈ D, if v is complete, then d(v) = d[v] ≥ Bi−1 . If v is incomplete, by proposition (a) of
+                                                  b
+Lemma 3.7, because v ∈ T[Bi−1                   ′
+                            ′ ,B) (P ), d(v) ≥ Bi−1 .
+
+
+                                                               13
+Lemma 3.11. Denote by U    e := T<B (S) the set that contains every vertex v with d(v) < B and the shortest
+path to v visits some vertex of S. After running Algorithm 3, min{|Ue |, k|S|} ≤ |U | and |S| ≤ |U |.
+                                                 e = U . If it is partial, then k|S| ≤ k2lt ≤ |U |.
+Proof. If it is a successful execution, then S ⊆ U
+
+   For a vertex set U and two bounds c < d, denote N + (U ) = {(u, v) : u ∈ U } as the set of outgoing
+                     +
+edges from U , and N[c,d) (U ) = {(u, v) : u ∈ U and d(u) + wuv ∈ [c, d)}.
+Lemma 3.12 (Time Complexity). Suppose a large constant C upper-bounds the sum of the constants hidden
+in the big-O notations in all previously mentioned running times: in find-pivots, in the data structure, in
+relaxation, and all other operations. Algorithm 3 solves the problem in Lemma 3.1 in time
+                                                                  +
+                        C(k + 2t/k)(l + 1)|U | + C(t + l log k)|N[min x∈S d(x),B)
+                                                                                  (U )|.
+
+With k = ⌊log1/3 (n)⌋ and t = ⌊log2/3 (n)⌋, calling the algorithm with l = ⌈(log n)/t⌉, S = {s}, B = ∞
+takes O(m log2/3 n) time.
+Proof. We prove by induction on the level l. When l = 0, the algorithm degenerates to the classical Dijkstra’s
+algorithm (Algorithm 2) and takes time C|U | log k, so the base case is proved. Suppose the time complexity
+is correct for level l − 1. Now we analyze the time complexity of level l.
+    By Remark 3.5, each insertion takes amortized time Ct (note that log k < t); each batch prepended
+element takes amortized time C log k; each pulled term takes amortized constant time. But we may ignore
+Pull’s running time because each pulled term must have been inserted/batch prepended, and the constant of
+Pull can be covered by C in those two operations.
+                                             P
+    By Remark 3.8, Ui ’s are disjoint and i≥1 |Ui | ≤ |U |.
+    Now we are ready to calculate total running time of Algorithm 3 on level l by listing all the steps.
+    By Lemma 3.2, the FindPivots step takes time C · min{|U        e |, k|S|}k and |P | ≤ min{|U  e |/k, |S|}. In-
+serting P into D takes time C|P |t. And by Lemma 3.11, their time is bounded by C(k + t/k)|U |.
+                                                                                            +
+    In the i-th iteration, the sub-routine takes C(k + 2t/k)l|Ui | + C(t + (l − 1) log k)|N[min x∈S d(x),Bi )
+                                                                                                              (Ui )|
+                                                                                                        i
+                                                                   +                            +
+time by the induction hypothesis. Taking the sum, by Lemma 3.10, N[min x∈Si d(x),Bi )
+                                                                                      (Ui ) ⊆ N[B ′         (Ui ).
+                                                                                                  i−1 ,Bi )
+Then the sum of time spent by all the sub-routines is bounded by
+                                                                1  N
+                                           z                  }|X                                 {
+                                                                     +
+                        C(k + 2t/k)l|U | + C(t + (l − 1) log k)   |N[B ′               ,Bi )
+                                                                                             (Ui )| .
+                                                                                 i−1
+                                                                       i≥1
+
+                                                                                   b + wuv ∈ [Bi , B), they
+    In the following relaxation step, for each edge (u, v) originated from Ui , if d[u]
+                          b               ′
+are directly inserted; if d[u] + wuv ∈ [Bi , Bi ), they are batch prepended. Again by Remark 3.8, all Ui ’s are
+complete, so for the previous statements we can replace d[·] b with d(·). Thus in total, it takes time
+
+                                       N                               N
+                             z X }|2           { z          X}|
+                                                               3
+                                                                                {
+                                   +                             +
+                             Ct |N[Bi ,B) (Ui )| + C(log k)   |N[B ′ ,Bi ) (Ui )| .
+                                                                             i
+                                 i≥1                             i≥1
+
+
+    Vertices in Si were also batch prepended, and this step takes time O(|{x ∈ Si : b d[x] ∈ [Bi′ , Bi )}| log k).
+                                                  ′
+                            P time only if Bi < Bi , i.e., the i-th sub-routine is a partial execution. Thus in
+This operation takes non-zero
+total this step takes time C partial i |Si | log k ≤ (C|U | log k)/k ≤ C|U |t/k.
+    Therefore, the total running time on the level l is
+
+                                           C(k + 2t/k)(l + 1)|U | + N ,
+
+                                                        14
+where N is the sum
+                                   1 N +N                                              3        N
+      z                    X        }| 2              X                { z          X}|                 {
+                                +                          +                             +
+  N = C(t + (l − 1) log k)   |N[B ′ ,Bi ) (Ui )| + Ct   |N[Bi ,B) (Ui )| + C(log k)   |N[B ′ ,Bi ) (Ui )| .
+                                      i−1                                                             i
+                             i≥1                          i≥1                                i≥1
+
+   For N1 + N2 , because
+           X                         X                     X
+                  +                       +                     +                        +
+              |N[B  ′       (Ui )| +   |N[Bi ,B) (U i )| =   |N[B ′          (Ui )| ≤ |N[B ′ ,B) (U )|,
+                      ,Bi )
+                     i−1                                           i−1 ,B)                  0
+            i≥1                      i≥1                   i≥1
+
+                                                               +
+and B0′ ≥ minx∈S d(x), it is bounded by C(t + (l − 1) log k)|N[min x∈S d(x),B)
+                                                                               (U )|. N3 is bounded by
+           +                          +
+C(log k)|N[B ′ ,B) (U )| ≤ C(log k)|N[minx∈S d(x),B) (U )|.
+             0
+                                  +
+   Therefore N ≤ C(t + l log k)|N[min x∈S d(x),B)
+                                                  (U )|.
+
+
+References
+  [BCF23] Karl Bringmann, Alejandro Cassis, and Nick Fischer. Negative-Weight Single-Source Shortest
+          Paths in Near-Linear Time: Now Faster! . In 2023 IEEE 64th Annual Symposium on Founda-
+          tions of Computer Science (FOCS), pages 515–538, Los Alamitos, CA, USA, November 2023.
+          IEEE Computer Society.
+
+   [Bel58] Richard Bellman. On a routing problem. Quarterly of Applied Mathematics, 16:87–90, 1958.
+
+ [BFP+ 73] Manuel Blum, Robert W. Floyd, Vaughan Pratt, Ronald L. Rivest, and Robert E. Tarjan. Time
+           bounds for selection. Journal of Computer and System Sciences, 7(4):448–461, 1973.
+
+[BNWN22] Aaron Bernstein, Danupon Nanongkai, and Christian Wulff-Nilsen. Negative-weight single-
+         source shortest paths in near-linear time. In 2022 IEEE 63rd Annual Symposium on Foundations
+         of Computer Science (FOCS), pages 600–611, 2022.
+
+[CKL+ 22] Li Chen, Rasmus Kyng, Yang P. Liu, Richard Peng, Maximilian Probst Gutenberg, and Sushant
+          Sachdeva. Maximum flow and minimum-cost flow in almost-linear time. In 2022 IEEE 63rd
+          Annual Symposium on Foundations of Computer Science (FOCS), pages 612–623, 2022.
+
+[CKT+ 16] Shiri Chechik, Haim Kaplan, Mikkel Thorup, Or Zamir, and Uri Zwick. Bottleneck paths and
+          trees and deterministic graphical games. In Nicolas Ollinger and Heribert Vollmer, editors,
+          STACS, volume 47 of LIPIcs, pages 27:1–27:13. Schloss Dagstuhl - Leibniz-Zentrum für Infor-
+          matik, 2016.
+
+ [DGST88] James R. Driscoll, Harold N. Gabow, Ruth Shrairman, and Robert E. Tarjan. Relaxed heaps:
+          An alternative to Fibonacci heaps with applications to parallel computation. Commun. ACM,
+          31(11):1343–1354, November 1988.
+
+    [Dij59] E. W. Dijkstra. A note on two problems in connexion with graphs. Numerische Mathematik,
+            1:269–271, 1959.
+
+[DLWX18] Ran Duan, Kaifeng Lyu, Hongxun Wu, and Yuanhang Xie. Single-source bottleneck path al-
+         gorithm faster than sorting for sparse graphs. CoRR, abs/1808.10658, 2018.
+
+
+
+
+                                                     15
+[DMSY23] R. Duan, J. Mao, X. Shu, and L. Yin. A randomized algorithm for single-source shortest path
+         on undirected real-weighted graphs. In 2023 IEEE 64th Annual Symposium on Foundations of
+         Computer Science (FOCS), pages 484–492, Los Alamitos, CA, USA, November 2023. IEEE
+         Computer Society.
+   [Fin24] Jeremy T. Fineman. Single-source shortest paths with negative real weights in O(mn
+                                                                                         e    8/9 ) time.
+
+           In Proceedings of the 56th Annual ACM Symposium on Theory of Computing, STOC 2024,
+           page 3–14, New York, NY, USA, 2024. Association for Computing Machinery.
+   [Fre83] Greg N. Frederickson. Data structures for on-line updating of minimum spanning trees. In
+           Proceedings of the Fifteenth Annual ACM Symposium on Theory of Computing, STOC ’83,
+           page 252–257, New York, NY, USA, 1983. Association for Computing Machinery.
+   [FT87] M. L. Fredman and R. E. Tarjan. Fibonacci heaps and their uses in improved network optimiza-
+          tion algorithms. JACM, 34(3):596–615, 1987.
+   [FW93] Michael L. Fredman and Dan E. Willard. Surpassing the information theoretic bound with
+          fusion trees. Journal of Computer and System Sciences, 47(3):424–436, 1993.
+   [FW94] Michael L. Fredman and Dan E. Willard. Trans-dichotomous algorithms for minimum spanning
+          trees and shortest paths. Journal of Computer and System Sciences, 48(3):533–551, 1994.
+   [GS78] Leo J. Guibas and Robert Sedgewick. A dichromatic framework for balanced trees. In 19th
+          Annual Symposium on Foundations of Computer Science (sfcs 1978), pages 8–21, 1978.
+   [GT88] Harold N Gabow and Robert E Tarjan. Algorithms for two bottleneck optimization problems.
+          Journal of Algorithms, 9(3):411–417, 1988.
+  [Hag00] Torben Hagerup. Improved shortest paths on the word RAM. In Ugo Montanari, José D. P.
+          Rolim, and Emo Welzl, editors, Automata, Languages and Programming, pages 61–72, Berlin,
+          Heidelberg, 2000. Springer Berlin Heidelberg.
+[HHR+ 24] Bernhard Haeupler, Richard Hladík, Václav Rozhoň, Robert E. Tarjan, and Jakub Tětek. Univer-
+          sal optimality of dijkstra via beyond-worst-case heaps. In 2024 IEEE 65th Annual Symposium
+          on Foundations of Computer Science (FOCS), 2024.
+  [HJQ24] Yufan Huang, Peter Jin, and Kent Quanrud. Faster single-source shortest paths with negative
+          real weights via proper hop distance, 2024.
+ [KKT95] David R. Karger, Philip N. Klein, and Robert E. Tarjan. A randomized linear-time algorithm to
+         find minimum spanning trees. J. ACM, 42(2):321–328, March 1995.
+   [PR05] Seth Pettie and Vijaya Ramachandran. A shortest path algorithm for real-weighted undirected
+          graphs. SIAM Journal on Computing, 34(6):1398–1431, 2005.
+  [Ram96] Rajeev Raman. Priority queues: Small, monotone and trans-dichotomous. In Proceedings
+          of the Fourth Annual European Symposium on Algorithms, ESA ’96, page 121–137, Berlin,
+          Heidelberg, 1996. Springer-Verlag.
+  [Ram97] Rajeev Raman. Recent results on the single-source shortest paths problem. SIGACT News,
+          28(2):81–87, June 1997.
+  [Tho99] Mikkel Thorup. Undirected single-source shortest paths with positive integer weights in linear
+          time. J. ACM, 46(3):362–394, May 1999.
+
+                                                  16
+[Tho00a] Mikkel Thorup. Floats, integers, and single source shortest paths. J. Algorithms, 35(2):189–201,
+         May 2000.
+
+[Tho00b] Mikkel Thorup. On RAM priority queues. SIAM Journal on Computing, 30(1):86–109, 2000.
+
+ [Tho04] Mikkel Thorup. Integer priority queues with decrease key in constant time and the single source
+         shortest paths problem. Journal of Computer and System Sciences, 69(3):330–353, 2004. Spe-
+         cial Issue on STOC 2003.
+
+ [Wil64] J. W. J. Williams. Algorithm 232: Heapsort. Communications of the ACM, 7(6):347–348, 1964.
+
+ [Wil10] Virginia Vassilevska Williams. Nondecreasing paths in a weighted graph or: How to optimally
+         read a train schedule. ACM Trans. Algorithms, 6(4), September 2010.
+
+ [Yao75] Andrew Chi-Chih Yao. An O(|E| log log |V |) algorithm for finding minimum spanning trees.
+         Information Processing Letters, 4(1):21–23, 1975.
+
+
+
+
+                                                 17
+
